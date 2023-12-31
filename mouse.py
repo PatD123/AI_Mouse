@@ -2,7 +2,7 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
-import numpy as np
+import math
 import cv2 as cv
 import pyautogui as pygui
 
@@ -14,6 +14,18 @@ IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
 pygui.PAUSE = 0
+
+prev_px = 0
+prev_py = 0
+
+def rescale(x, y):
+    disp_width = 540 - 80
+    disp_height = 320 - 0
+
+    x -= 80
+    new_x = 1920 - x * 2000 / disp_width
+    new_y = y * 1100 / disp_height
+    return new_x, new_y
 
 cap = cv.VideoCapture(0)
 with mp_hands.Hands(
@@ -40,20 +52,35 @@ with mp_hands.Hands(
     image = cv.cvtColor(image, cv.COLOR_RGB2BGR)
     if results.multi_hand_landmarks:
       for hand_landmarks in results.multi_hand_landmarks:
-        # Index pointer
-        x = hand_landmarks.landmark[8].x * IMAGE_WIDTH
-        y = hand_landmarks.landmark[8].y * IMAGE_HEIGHT
-        z = hand_landmarks.landmark[8].z
-        # cv.circle(image,(int(x),int(y)), 100, (0,0,255), -1)
-        disp_width = 540 - 80
-        disp_height = 320 - 0
-        if x >= 80 and x <= 540 and y >= 0 and y <= 320:
-          x -= 80
 
-          new_x = 1920 - x * 2000 / disp_width
-          new_y = y * 1100 / disp_height
-          print(1920 - new_x, new_y)
-          pygui.moveTo(new_x, new_y, 0)
+        # Thumb pointer
+        t_x = hand_landmarks.landmark[4].x * IMAGE_WIDTH
+        t_y = hand_landmarks.landmark[4].y * IMAGE_HEIGHT
+
+        # Bottom index
+        b_x = hand_landmarks.landmark[5].x * IMAGE_WIDTH
+        b_y = hand_landmarks.landmark[5].y * IMAGE_HEIGHT
+
+        # Index pointer
+        p_x = hand_landmarks.landmark[8].x * IMAGE_WIDTH
+        p_y = hand_landmarks.landmark[8].y * IMAGE_HEIGHT
+
+        # cv.circle(image,(int(x),int(y)), 100, (0,0,255), -1)
+
+        if p_x >= 80 and p_x <= 540 and p_y >= 0 and p_y <= 320:
+            new_tx, new_ty = rescale(t_x, t_y)
+            new_bx, new_by = rescale(b_x, b_y)
+            new_px, new_py = rescale(p_x, p_y)
+
+            if abs(new_px - prev_px) >= 3 and abs(new_py - prev_py) >= 3:
+                prev_px = new_px
+                prev_py = new_py
+                pygui.moveTo(new_px, new_py, 0)
+
+            if math.dist([new_tx, new_ty], [new_bx, new_by]) < 80:
+                pygui.click(button='left', clicks=1, interval=0.5)
+
+        
 
         # Visualizing landmarks
         mp_drawing.draw_landmarks(
