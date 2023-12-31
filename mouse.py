@@ -4,88 +4,71 @@ from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
 import cv2 as cv
-import threading
-
-BaseOptions = mp.tasks.BaseOptions
-GestureRecognizer = mp.tasks.vision.GestureRecognizer
-GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
-GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
-VisionRunningMode = mp.tasks.vision.RunningMode
-
-model_path = 'gesture_recognizer.task'
-base_options = BaseOptions(model_asset_path=model_path)
+import pyautogui as pygui
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
-image_lock = threading.Lock()
-global shared_image
-global shared_landmarks
-shared_image = None
-shared_landmarks = None
+IMAGE_WIDTH = 640
+IMAGE_HEIGHT = 480
 
-def print_result(result: GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
-        if(len(result.gestures) == 0):
-            return
+pygui.PAUSE = 0
 
-        landmarks_2d = landmark_pb2.NormalizedLandmarkList()
-        for hand_landmark in result.hand_landmarks[0]:
-            landmarks_2d.landmark.add(x=hand_landmark.x, y=hand_landmark.y)
-        
-        with image_lock:
-            global shared_landmarks, shared_image
-            shared_landmarks = landmarks_2d
-            shared_image = output_image
-
-def display_loop():
-    global shared_image, shared_landmarks
-    while True:
-        if shared_image is None or shared_landmarks is None:
-            continue
-
-        img = shared_image
-        landmarks = shared_landmarks
-        with image_lock:
-            img = shared_image
-            landmarks = shared_landmarks
-
-        output = img.numpy_view()
-        mp_drawing.draw_landmarks(
-                        output,
-                        landmarks,
-                        mp_hands.HAND_CONNECTIONS,
-                        mp_drawing_styles.get_default_hand_landmarks_style(),
-                        mp_drawing_styles.get_default_hand_connections_style())
-        cv.imshow("asfd", output)
-        cv.waitKey(3)
+cap = cv.VideoCapture(0)
+with mp_hands.Hands(
+    model_complexity=0,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5) as hands:
+  while cap.isOpened():
+    x, y = pygui.position()
+    success, image = cap.read()
     
-if __name__ == "__main__":
-    cap = cv.VideoCapture(0)
-    cap.set(cv.CAP_PROP_BUFFERSIZE, 120)
-    if not cap.isOpened():
-        print("Cannot open camera")
-        cap.open()
+    if not success:
+      print("Ignoring empty camera frame.")
+      # If loading a video, use 'break' instead of 'continue'.
+      continue
 
-    display_thread = threading.Thread(target=display_loop, daemon=True)
-    display_thread.start()
+    # To improve performance, optionally mark the image as not writeable to
+    # pass by reference.
+    image.flags.writeable = False
+    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+    results = hands.process(image)
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
-            break
+    # Draw the hand annotations on the image.
+    image.flags.writeable = True
+    image = cv.cvtColor(image, cv.COLOR_RGB2BGR)
+    if results.multi_hand_landmarks:
+      for hand_landmarks in results.multi_hand_landmarks:
+        # Index pointer
+        x = hand_landmarks.landmark[8].x * IMAGE_WIDTH
+        y = hand_landmarks.landmark[8].y * IMAGE_HEIGHT
+        z = hand_landmarks.landmark[8].z
+        # cv.circle(image,(int(x),int(y)), 100, (0,0,255), -1)
+        disp_width = 540 - 80
+        disp_height = 320 - 0
+        if x >= 80 and x <= 540 and y >= 0 and y <= 320:
+          x -= 80
 
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
-        shared_img = mp_image
+          new_x = 1920 - x * 2000 / disp_width
+          new_y = y * 1100 / disp_height
+          print(1920 - new_x, new_y)
+          pygui.moveTo(new_x, new_y, 0)
 
-        options = GestureRecognizerOptions(
-            base_options=BaseOptions(model_asset_path=model_path),
-            running_mode=VisionRunningMode.LIVE_STREAM,
-            result_callback=print_result)
-        with GestureRecognizer.create_from_options(options) as recognizer:
-            recognizer.recognize_async(mp_image, cv.CAP_PROP_POS_MSEC)
+        # Visualizing landmarks
+        mp_drawing.draw_landmarks(
+            image,
+            hand_landmarks,
+            mp_hands.HAND_CONNECTIONS,
+            mp_drawing_styles.get_default_hand_landmarks_style(),
+            mp_drawing_styles.get_default_hand_connections_style())
+        
+    # Display the box we have to stay in
+    cv.rectangle(image,(540,0),(80,320),(0,255,0),3)
 
-    cap.release()
-
+    # Flip the image horizontally for a selfie-view display.
+    cv.imshow('MediaPipe Hands', cv.flip(image, 1))
+    if cv.waitKey(5) & 0xFF == 27:
+      break
+cap.release()
     
