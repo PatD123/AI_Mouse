@@ -14,9 +14,12 @@ IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
 pygui.PAUSE = 0
+pygui.MINIMUM_DURATION = 0.01
+pygui.MINIMUM_SLEEP = 0.01
 
 prev_px = 0
 prev_py = 0
+smoothing = 3
 
 def rescale(x, y):
     disp_width = 540 - 80
@@ -67,15 +70,21 @@ with mp_hands.Hands(
 
         # cv.circle(image,(int(x),int(y)), 100, (0,0,255), -1)
 
-        if p_x >= 80 and p_x <= 540 and p_y >= 0 and p_y <= 320:
+        if p_x >= 50 and p_x <= 580 and p_y >= 0 and p_y <= 320:
             new_tx, new_ty = rescale(t_x, t_y)
             new_bx, new_by = rescale(b_x, b_y)
             new_px, new_py = rescale(p_x, p_y)
 
-            if abs(new_px - prev_px) >= 3 and abs(new_py - prev_py) >= 3:
-                prev_px = new_px
-                prev_py = new_py
-                pygui.moveTo(new_px, new_py, 0)
+            new_px = prev_px + (new_px - prev_px) / smoothing
+            new_py = prev_py + (new_py - prev_py) / smoothing
+            prev_px = new_px
+            prev_py = new_py
+            pygui.moveTo(new_px, new_py, 0)
+
+            #if abs(new_px - prev_px) >= 5 and abs(new_py - prev_py) >= 5:
+            #    prev_px = new_px
+            #    prev_py = new_py
+            #    pygui.moveTo(new_px, new_py, 0)
 
             if math.dist([new_tx, new_ty], [new_bx, new_by]) < 80:
                 pygui.click(button='left', clicks=1, interval=0.5)
