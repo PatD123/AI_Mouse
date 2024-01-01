@@ -67,6 +67,8 @@ with mp_hands.Hands(
         # Index pointer
         p_x = hand_landmarks.landmark[8].x * IMAGE_WIDTH
         p_y = hand_landmarks.landmark[8].y * IMAGE_HEIGHT
+        p_z = hand_landmarks.landmark[8].z
+        print(p_z)
 
         # cv.circle(image,(int(x),int(y)), 100, (0,0,255), -1)
 
@@ -87,7 +89,7 @@ with mp_hands.Hands(
             #    pygui.moveTo(new_px, new_py, 0)
 
             if math.dist([new_tx, new_ty], [new_bx, new_by]) < 80:
-                pygui.click(button='left', clicks=1, interval=0.5)
+                pygui.click(button='left', clicks=1, interval=1)
 
         
 
