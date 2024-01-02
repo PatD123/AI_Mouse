@@ -61,14 +61,13 @@ with mp_hands.Hands(
         t_y = hand_landmarks.landmark[4].y * IMAGE_HEIGHT
 
         # Bottom index
-        b_x = hand_landmarks.landmark[5].x * IMAGE_WIDTH
-        b_y = hand_landmarks.landmark[5].y * IMAGE_HEIGHT
+        b_x = hand_landmarks.landmark[6].x * IMAGE_WIDTH
+        b_y = hand_landmarks.landmark[6].y * IMAGE_HEIGHT
 
         # Index pointer
         p_x = hand_landmarks.landmark[8].x * IMAGE_WIDTH
         p_y = hand_landmarks.landmark[8].y * IMAGE_HEIGHT
         p_z = hand_landmarks.landmark[8].z
-        print(p_z)
 
         # cv.circle(image,(int(x),int(y)), 100, (0,0,255), -1)
 
@@ -88,8 +87,8 @@ with mp_hands.Hands(
             #    prev_py = new_py
             #    pygui.moveTo(new_px, new_py, 0)
 
-            if math.dist([new_tx, new_ty], [new_bx, new_by]) < 80:
-                pygui.click(button='left', clicks=1, interval=1)
+            if math.dist([new_tx, new_ty], [new_bx, new_by]) < 100:
+                pygui.click(button='left', clicks=1, interval=0.25)
 
         
 
